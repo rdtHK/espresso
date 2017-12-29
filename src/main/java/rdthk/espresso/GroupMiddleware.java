@@ -30,14 +30,6 @@ public class GroupMiddleware implements Middleware {
         return stack.pop();
     }
 
-    public void use(Middleware middleware) {
-        if (prefix.isEmpty()) {
-            children.add(middleware);
-        } else {
-            children.add(new PathMiddleware(prefix + "*", middleware));
-        }
-    }
-
     public void all(Controller action) {
         children.add(new PathMiddleware(prefix + "*", new ControllerMiddleware(action)));
     }
