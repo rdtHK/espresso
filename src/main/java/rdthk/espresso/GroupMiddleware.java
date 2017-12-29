@@ -9,6 +9,7 @@ public class GroupMiddleware implements Middleware {
     private final List<Middleware> children = new ArrayList<>();
     private final String prefix;
 
+
     public interface Configuration {
         void configure(GroupMiddleware group);
     }
@@ -31,7 +32,11 @@ public class GroupMiddleware implements Middleware {
     }
 
     public void all(Controller action) {
-        children.add(new PathMiddleware(prefix + "*", new ControllerMiddleware(action)));
+        children.add(new PathMiddleware(fullPath("*"), new ControllerMiddleware(action)));
+    }
+
+    public void all(String path, Controller action) {
+        children.add(new PathMiddleware(fullPath(path), new ControllerMiddleware(action)));
     }
 
     public void get(String path, Controller action) {

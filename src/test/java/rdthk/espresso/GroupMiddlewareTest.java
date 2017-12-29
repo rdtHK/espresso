@@ -144,6 +144,18 @@ public class GroupMiddlewareTest {
         notFound();
     }
 
+    @Test
+    void testAllWithPath() {
+        setRequest(GET, "path");
+        group.all("path", (req) -> response);
+        found();
+
+        setRequest(GET, "prefix/path");
+        group = new GroupMiddleware("prefix/");
+        group.all("path", (req) -> response);
+        found();
+    }
+
     private void found() {
         assertEquals(response, group.handleRequest(request, stack));
     }
