@@ -145,14 +145,61 @@ public class GroupMiddlewareTest {
     }
 
     @Test
-    void testAllWithPath() {
+    void testAllWithController() {
+        group.all((req) -> response);
+
         setRequest(GET, "path");
-        group.all("path", (req) -> response);
         found();
 
-        setRequest(GET, "prefix/path");
+        setRequest(POST, "other-path");
+        found();
+    }
+
+    @Test
+    void testAllWithMiddleware() {
+        group.all((req, s) -> response);
+
+        setRequest(GET, "path");
+        found();
+
+        setRequest(PUT, "other-path");
+        found();
+    }
+
+    @Test
+    void testAllWithPathAndController() {
+        group.all("path", (req) -> response);
+
+        setRequest(GET, "path");
+        found();
+
+        setRequest(GET, "path-and-more");
+        notFound();
+
+        setRequest(GET, "other");
+        notFound();
+    }
+
+    @Test
+    void testAllWithPathAndMiddleware() {
+        group.all("path", (req, s) -> response);
+
+        setRequest(GET, "path");
+        found();
+
+        setRequest(GET, "path-and-more");
+        notFound();
+
+        setRequest(GET, "other");
+        notFound();
+    }
+
+    @Test
+    void testAllWithPathAndPrefix() {
         group = new GroupMiddleware("prefix/");
         group.all("path", (req) -> response);
+
+        setRequest(GET, "prefix/path");
         found();
     }
 

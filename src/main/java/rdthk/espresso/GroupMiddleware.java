@@ -31,12 +31,20 @@ public class GroupMiddleware implements Middleware {
         return stack.pop();
     }
 
+    public void all(Middleware middleware) {
+        all("*", middleware);
+    }
+
     public void all(Controller action) {
-        children.add(new PathMiddleware(fullPath("*"), new ControllerMiddleware(action)));
+        all(new ControllerMiddleware(action));
+    }
+
+    public void all(String path, Middleware middleware) {
+        children.add(new PathMiddleware(fullPath(path), middleware));
     }
 
     public void all(String path, Controller action) {
-        children.add(new PathMiddleware(fullPath(path), new ControllerMiddleware(action)));
+        all(path, new ControllerMiddleware(action));
     }
 
     public void get(String path, Controller action) {
