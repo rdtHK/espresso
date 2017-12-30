@@ -267,6 +267,77 @@ public class GroupMiddlewareTest {
         found();
     }
 
+    @Test
+    void testPostWithMiddleware() {
+        group.post((req, s) -> response);
+
+        setRequest(POST, "right");
+        found();
+
+        setRequest(PUT, "right");
+        notFound();
+    }
+
+    @Test
+    void testPostWithController() {
+        group.post((req) -> response);
+
+        setRequest(POST, "right");
+        found();
+
+        setRequest(PUT, "right");
+        notFound();
+    }
+
+    @Test
+    void testPostWithMiddlewareAndPrefix() {
+        group = new GroupMiddleware("prefix");
+        group.post((req, s) -> response);
+
+        setRequest(POST, "prefix");
+        found();
+
+        setRequest(POST, "prefix-and-more");
+        found();
+
+        group = new GroupMiddleware("wrong-prefix");
+        group.post((req, s) -> response);
+
+        setRequest(POST, "prefix");
+        notFound();
+    }
+
+    @Test
+    void testPostWithControllerAndPrefix() {
+        group = new GroupMiddleware("prefix");
+        group.post((req) -> response);
+
+        setRequest(POST, "prefix");
+        found();
+
+        setRequest(POST, "prefix-and-more");
+        found();
+
+        group = new GroupMiddleware("wrong-prefix");
+        group.post((req) -> response);
+
+        setRequest(POST, "prefix");
+        notFound();
+    }
+
+    @Test
+    void testPostWithPathAndMiddleware() {
+        group.post("right", (req, s) -> response);
+
+        setRequest(POST, "right");
+        found();
+
+        setRequest(POST, "wrong");
+        notFound();
+
+        setRequest(PUT, "right");
+        notFound();
+    }
 
     @Test
     void testPostWithPathAndController() {
@@ -278,8 +349,32 @@ public class GroupMiddlewareTest {
         setRequest(POST, "wrong");
         notFound();
 
-        setRequest(GET, "right");
+        setRequest(PUT, "right");
         notFound();
+    }
+
+    @Test
+    void testPostWithPathAndMiddlewareAndPrefix() {
+        group = new GroupMiddleware("prefix/");
+        group.post("right", (req, s) -> response);
+
+        setRequest(POST, "right");
+        notFound();
+
+        setRequest(POST, "prefix/right");
+        found();
+    }
+
+    @Test
+    void testPostWithPathAndControllerAndPrefix() {
+        group = new GroupMiddleware("prefix/");
+        group.post("right", (req) -> response);
+
+        setRequest(POST, "right");
+        notFound();
+
+        setRequest(POST, "prefix/right");
+        found();
     }
 
     @Test
