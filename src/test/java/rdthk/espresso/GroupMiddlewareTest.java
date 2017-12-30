@@ -46,160 +46,206 @@ public class GroupMiddlewareTest {
     }
 
     @Test
-    void testGet() {
-        group.get("match", (req) -> response);
+    void testAllWithMiddleware() {
+        group.all((req, s) -> response);
 
-        setRequest(GET, "match");
+        setRequest(GET, "right");
         found();
 
-        setRequest(GET, "wrong-path");
-        notFound();
-
-        setRequest(POST, "match");
-        notFound();
-    }
-
-    @Test
-    void testPost() {
-        group.post("match", (req) -> response);
-
-        setRequest(POST, "match");
+        setRequest(PUT, "wrong");
         found();
-
-        setRequest(GET, "match");
-        notFound();
-    }
-
-    @Test
-    void testPut() {
-        group.put("match", (req) -> response);
-
-        setRequest(PUT, "match");
-        found();
-
-        setRequest(GET, "match");
-        notFound();
-    }
-
-    @Test
-    void testDelete() {
-        group.delete("match", (req) -> response);
-
-        setRequest(DELETE, "match");
-        found();
-
-        setRequest(GET, "match");
-        notFound();
-    }
-
-    @Test
-    void testPatch() {
-        group.patch("match", (req) -> response);
-
-        setRequest(PATCH, "match");
-        found();
-
-        setRequest(GET, "match");
-        notFound();
-    }
-
-    @Test
-    void testSubRouteGroup() {
-        setRequest(GET, "match");
-
-        group.group((r) -> {
-            r.get("match", (req) -> response);
-        });
-
-        found();
-    }
-
-    @Test
-    void testSubRouteGroupWithPrefix() {
-        setRequest(GET, "prefix/match");
-
-        group.group("prefix/", (r) -> {
-            r.get("match", (req) -> response);
-        });
-
-        found();
-    }
-
-    @Test
-    void testAllWithPrefix() {
-
-        setRequest(GET, "prefix");
-        group = new GroupMiddleware("prefix");
-        group.all((req) -> response);
-        found();
-
-        setRequest(GET, "prefix-and-some-more");
-        group = new GroupMiddleware("prefix");
-        group.all((req) -> response);
-        found();
-
-        setRequest(GET, "prefix");
-        group = new GroupMiddleware("other-prefix");
-        group.all((req) -> response);
-        notFound();
     }
 
     @Test
     void testAllWithController() {
         group.all((req) -> response);
 
-        setRequest(GET, "path");
+        setRequest(GET, "right");
         found();
 
-        setRequest(POST, "other-path");
+        setRequest(POST, "wrong");
         found();
     }
 
+
     @Test
-    void testAllWithMiddleware() {
+    void testAllWithMiddlewareAndPrefix() {
+        group = new GroupMiddleware("prefix");
         group.all((req, s) -> response);
 
-        setRequest(GET, "path");
+        setRequest(GET, "prefix");
         found();
 
-        setRequest(PUT, "other-path");
+        setRequest(GET, "prefix-and-more");
         found();
+
+        group = new GroupMiddleware("wrong-prefix");
+        group.all((req, s) -> response);
+
+        setRequest(GET, "prefix");
+        notFound();
     }
 
     @Test
-    void testAllWithPathAndController() {
-        group.all("path", (req) -> response);
+    void testAllWithControllerAndPrefix() {
+        group = new GroupMiddleware("prefix");
+        group.all((req) -> response);
 
-        setRequest(GET, "path");
+        setRequest(GET, "prefix");
         found();
 
-        setRequest(GET, "path-and-more");
-        notFound();
+        setRequest(GET, "prefix-and-more");
+        found();
 
-        setRequest(GET, "other");
+        group = new GroupMiddleware("wrong-prefix");
+        group.all((req) -> response);
+
+        setRequest(GET, "prefix");
         notFound();
     }
 
     @Test
     void testAllWithPathAndMiddleware() {
-        group.all("path", (req, s) -> response);
+        group.all("right", (req, s) -> response);
 
-        setRequest(GET, "path");
+        setRequest(GET, "right");
         found();
 
-        setRequest(GET, "path-and-more");
+        setRequest(GET, "right-and-more");
         notFound();
 
-        setRequest(GET, "other");
+        setRequest(GET, "wrong");
         notFound();
     }
 
     @Test
-    void testAllWithPathAndPrefix() {
-        group = new GroupMiddleware("prefix/");
-        group.all("path", (req) -> response);
+    void testAllWithPathAndController() {
+        group.all("right", (req) -> response);
 
-        setRequest(GET, "prefix/path");
+        setRequest(GET, "right");
+        found();
+
+        setRequest(GET, "right-and-more");
+        notFound();
+
+        setRequest(GET, "wrong");
+        notFound();
+    }
+
+    @Test
+    void testAllWithPathAndMiddlewareAndPrefix() {
+        group = new GroupMiddleware("prefix/");
+        group.all("right", (req, s) -> response);
+
+        setRequest(GET, "right");
+        notFound();
+
+        setRequest(GET, "prefix/right");
+        found();
+    }
+
+    @Test
+    void testAllWithPathAndControllerAndPrefix() {
+        group = new GroupMiddleware("prefix/");
+        group.all("right", (req) -> response);
+
+        setRequest(GET, "right");
+        notFound();
+
+        setRequest(GET, "prefix/right");
+        found();
+    }
+
+    @Test
+    void testGetWithPathAndController() {
+        group.get("right", (req) -> response);
+
+        setRequest(GET, "right");
+        found();
+
+        setRequest(GET, "wrong");
+        notFound();
+
+        setRequest(POST, "right");
+        notFound();
+    }
+
+    @Test
+    void testPostWithPathAndController() {
+        group.post("right", (req) -> response);
+
+        setRequest(POST, "right");
+        found();
+
+        setRequest(POST, "wrong");
+        notFound();
+
+        setRequest(GET, "right");
+        notFound();
+    }
+
+    @Test
+    void testPutWithPathAndController() {
+        group.put("right", (req) -> response);
+
+        setRequest(PUT, "right");
+        found();
+
+        setRequest(PUT, "wrong");
+        notFound();
+
+        setRequest(GET, "right");
+        notFound();
+    }
+
+    @Test
+    void testDeleteWithPathAndController() {
+        group.delete("right", (req) -> response);
+
+        setRequest(DELETE, "right");
+        found();
+
+        setRequest(DELETE, "wrong");
+        notFound();
+
+        setRequest(GET, "right");
+        notFound();
+    }
+
+    @Test
+    void testPatchWithPathAndController() {
+        group.patch("right", (req) -> response);
+
+        setRequest(PATCH, "right");
+        found();
+
+        setRequest(PATCH, "wrong");
+        notFound();
+
+        setRequest(GET, "right");
+        notFound();
+    }
+
+    @Test
+    void testSubRouteGroup() {
+        group.group((r) -> {
+            r.get("right", (req) -> response);
+        });
+
+        setRequest(GET, "right");
+        found();
+    }
+
+    @Test
+    void testSubRouteGroupWithPrefix() {
+        group.group("prefix/", (r) -> {
+            r.get("right", (req) -> response);
+        });
+
+        setRequest(GET, "right");
+        notFound();
+
+        setRequest(GET, "prefix/right");
         found();
     }
 
