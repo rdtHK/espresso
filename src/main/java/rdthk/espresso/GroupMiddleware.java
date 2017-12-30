@@ -36,7 +36,7 @@ public class GroupMiddleware implements Middleware {
     }
 
     public void all(Controller action) {
-        all(new ControllerMiddleware(action));
+        all("*", action);
     }
 
     public void all(String path, Middleware middleware) {
@@ -47,8 +47,20 @@ public class GroupMiddleware implements Middleware {
         all(path, new ControllerMiddleware(action));
     }
 
+    public void get(Middleware middleware) {
+        get("*", middleware);
+    }
+
+    public void get(Controller action) {
+        get("*", action);
+    }
+
+    public void get(String path, Middleware middleware) {
+        children.add(new MethodMiddleware(GET, new PathMiddleware(fullPath(path), middleware)));
+    }
+
     public void get(String path, Controller action) {
-        children.add(route(GET, path, action));
+        get(path, new ControllerMiddleware(action));
     }
 
     public void post(String path, Controller action) {
