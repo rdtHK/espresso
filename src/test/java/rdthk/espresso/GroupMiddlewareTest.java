@@ -1,16 +1,22 @@
 package rdthk.espresso;
 
+import net.bytebuddy.implementation.bytecode.Throw;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.EmptyStackException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static rdthk.espresso.Request.Method.*;
 
 public class GroupMiddlewareTest {
+    private String methodName;
+    private boolean withPrefix;
+    private boolean withPath;
+    private boolean withController;
     private Request request;
     private Response response;
     private Middleware.Stack stack;
@@ -18,6 +24,11 @@ public class GroupMiddlewareTest {
 
     @BeforeEach
     void beforeEach() {
+        methodName = "";
+        withPrefix = false;
+        withPath = false;
+        withController = false;
+
         request = mock(Request.class);
         response = mock(Response.class);
         stack = new Middleware.Stack(request);
@@ -26,397 +37,127 @@ public class GroupMiddlewareTest {
 
     @Test
     void testEmptyGroup() {
-        notFound();
+        assertFailure();
     }
 
     @Test
     void testMultipleRoutes() {
-        setRequest(GET, "right");
+        withRequest(GET, "right");
         group.get("wrong", (req) -> null);
         group.get("right", (req) -> response);
-        found();
+        assertSuccess();
     }
 
     @Test
     void testNoMatches() {
-        setRequest(GET, "right");
+        withRequest(GET, "right");
         group.get("1", (req) -> null);
         group.get("2", (req) -> null);
-        notFound();
+        assertFailure();
     }
 
     @Test
-    void testAllWithMiddleware() {
-        group.all((req, s) -> response);
+    void testRouteMethods() {
+        String[] methods = {
+                "all",
+                "get",
+                "post",
+                "put",
+                "patch",
+                "delete"
+        };
 
-        setRequest(GET, "foo");
-        found();
-
-        setRequest(PUT, "bar");
-        found();
+        try {
+            for (String method : methods) {
+                test(method, false);
+                test(method, true);
+                testWithPrefix(method, false);
+                testWithPrefix(method, true);
+                testWithPath(method, false);
+                testWithPath(method, true);
+                testWithPathAndPrefix(method, false);
+                testWithPathAndPrefix(method, true);
+            }
+        } catch (RuntimeException e) {
+            throw new RuntimeException(getContext(), e);
+        }
     }
 
-    @Test
-    void testAllWithController() {
-        group.all((req) -> response);
+    private void test(String name, boolean withController) {
+        beforeEach();
+        this.methodName = name;
+        this.withController = withController;
 
-        setRequest(GET, "foo");
-        found();
+        Request.Method rightMethod = name.equals("all") ? GET : Request.Method.valueOf(name.toUpperCase());
+        Request.Method wrongMethod = name.equals("all") ? null : (name.equals("get") ? POST : GET);
 
-        setRequest(POST, "bar");
-        found();
+        callMethod(name, withController);
+
+        withRequest(rightMethod, "right");
+        assertSuccess();
+
+        if (wrongMethod != null) {
+            withRequest(wrongMethod, "right");
+            assertFailure();
+        }
     }
 
-
-    @Test
-    void testAllWithMiddlewareAndPrefix() {
+    private void testWithPrefix(String name, boolean withController) {
+        beforeEach();
+        this.methodName = name;
+        this.withPrefix = true;
+        this.withController = withController;
         group = new GroupMiddleware("prefix");
-        group.all((req, s) -> response);
 
-        setRequest(GET, "prefix");
-        found();
+        Request.Method method = name.equals("all") ? GET : Request.Method.valueOf(name.toUpperCase());
 
-        setRequest(GET, "prefix-and-more");
-        found();
+        callMethod(name, withController);
 
-        group = new GroupMiddleware("wrong-prefix");
-        group.all((req, s) -> response);
+        withRequest(method, "prefix-right");
+        assertSuccess();
 
-        setRequest(GET, "prefix");
-        notFound();
+        withRequest(method, "wrong");
+        assertFailure();
     }
 
-    @Test
-    void testAllWithControllerAndPrefix() {
-        group = new GroupMiddleware("prefix");
-        group.all((req) -> response);
+    private void testWithPath(String name, boolean withController) {
+        beforeEach();
+        this.methodName = name;
+        this.withPath = true;
+        this.withController = withController;
 
-        setRequest(GET, "prefix");
-        found();
+        Request.Method method = name.equals("all") ? GET : Request.Method.valueOf(name.toUpperCase());
 
-        setRequest(GET, "prefix-and-more");
-        found();
+        callMethod(name, "right", withController);
 
-        group = new GroupMiddleware("wrong-prefix");
-        group.all((req) -> response);
+        withRequest(method, "right");
+        assertSuccess();
 
-        setRequest(GET, "prefix");
-        notFound();
+        withRequest(method, "right-and-more");
+        assertFailure();
+
+        withRequest(method, "wrong");
+        assertFailure();
     }
 
-    @Test
-    void testAllWithPathAndMiddleware() {
-        group.all("right", (req, s) -> response);
+    private void testWithPathAndPrefix(String name, boolean withController) {
+        beforeEach();
+        this.methodName = name;
+        this.withPrefix = true;
+        this.withPath = true;
+        this.withController = withController;
 
-        setRequest(GET, "right");
-        found();
-
-        setRequest(GET, "right-and-more");
-        notFound();
-
-        setRequest(GET, "wrong");
-        notFound();
-    }
-
-    @Test
-    void testAllWithPathAndController() {
-        group.all("right", (req) -> response);
-
-        setRequest(GET, "right");
-        found();
-
-        setRequest(GET, "right-and-more");
-        notFound();
-
-        setRequest(GET, "wrong");
-        notFound();
-    }
-
-    @Test
-    void testAllWithPathAndMiddlewareAndPrefix() {
         group = new GroupMiddleware("prefix/");
-        group.all("right", (req, s) -> response);
 
-        setRequest(GET, "right");
-        notFound();
+        Request.Method method = name.equals("all") ? GET : Request.Method.valueOf(name.toUpperCase());
 
-        setRequest(GET, "prefix/right");
-        found();
-    }
+        callMethod(name, "right", withController);
 
-    @Test
-    void testAllWithPathAndControllerAndPrefix() {
-        group = new GroupMiddleware("prefix/");
-        group.all("right", (req) -> response);
+        withRequest(method, "prefix/right");
+        assertSuccess();
 
-        setRequest(GET, "right");
-        notFound();
-
-        setRequest(GET, "prefix/right");
-        found();
-    }
-
-    @Test
-    void testGetWithMiddleware() {
-        group.get((req, s) -> response);
-
-        setRequest(GET, "right");
-        found();
-
-        setRequest(POST, "right");
-        notFound();
-    }
-
-    @Test
-    void testGetWithController() {
-        group.get((req) -> response);
-
-        setRequest(GET, "right");
-        found();
-
-        setRequest(POST, "right");
-        notFound();
-    }
-
-
-    @Test
-    void testGetWithMiddlewareAndPrefix() {
-        group = new GroupMiddleware("prefix");
-        group.get((req, s) -> response);
-
-        setRequest(GET, "prefix");
-        found();
-
-        setRequest(GET, "prefix-and-more");
-        found();
-
-        group = new GroupMiddleware("wrong-prefix");
-        group.get((req, s) -> response);
-
-        setRequest(GET, "prefix");
-        notFound();
-    }
-
-    @Test
-    void testGetWithControllerAndPrefix() {
-        group = new GroupMiddleware("prefix");
-        group.get((req) -> response);
-
-        setRequest(GET, "prefix");
-        found();
-
-        setRequest(GET, "prefix-and-more");
-        found();
-
-        group = new GroupMiddleware("wrong-prefix");
-        group.get((req) -> response);
-
-        setRequest(GET, "prefix");
-        notFound();
-    }
-
-    @Test
-    void testGetWithPathAndMiddleware() {
-        group.get("right", (req, s) -> response);
-
-        setRequest(GET, "right");
-        found();
-
-        setRequest(GET, "wrong");
-        notFound();
-
-        setRequest(POST, "right");
-        notFound();
-    }
-
-    @Test
-    void testGetWithPathAndController() {
-        group.get("right", (req) -> response);
-
-        setRequest(GET, "right");
-        found();
-
-        setRequest(GET, "wrong");
-        notFound();
-
-        setRequest(POST, "right");
-        notFound();
-    }
-
-    @Test
-    void testGetWithPathAndMiddlewareAndPrefix() {
-        group = new GroupMiddleware("prefix/");
-        group.get("right", (req, s) -> response);
-
-        setRequest(GET, "right");
-        notFound();
-
-        setRequest(GET, "prefix/right");
-        found();
-    }
-
-    @Test
-    void testGetWithPathAndControllerAndPrefix() {
-        group = new GroupMiddleware("prefix/");
-        group.get("right", (req) -> response);
-
-        setRequest(GET, "right");
-        notFound();
-
-        setRequest(GET, "prefix/right");
-        found();
-    }
-
-    @Test
-    void testPostWithMiddleware() {
-        group.post((req, s) -> response);
-
-        setRequest(POST, "right");
-        found();
-
-        setRequest(PUT, "right");
-        notFound();
-    }
-
-    @Test
-    void testPostWithController() {
-        group.post((req) -> response);
-
-        setRequest(POST, "right");
-        found();
-
-        setRequest(PUT, "right");
-        notFound();
-    }
-
-    @Test
-    void testPostWithMiddlewareAndPrefix() {
-        group = new GroupMiddleware("prefix");
-        group.post((req, s) -> response);
-
-        setRequest(POST, "prefix");
-        found();
-
-        setRequest(POST, "prefix-and-more");
-        found();
-
-        group = new GroupMiddleware("wrong-prefix");
-        group.post((req, s) -> response);
-
-        setRequest(POST, "prefix");
-        notFound();
-    }
-
-    @Test
-    void testPostWithControllerAndPrefix() {
-        group = new GroupMiddleware("prefix");
-        group.post((req) -> response);
-
-        setRequest(POST, "prefix");
-        found();
-
-        setRequest(POST, "prefix-and-more");
-        found();
-
-        group = new GroupMiddleware("wrong-prefix");
-        group.post((req) -> response);
-
-        setRequest(POST, "prefix");
-        notFound();
-    }
-
-    @Test
-    void testPostWithPathAndMiddleware() {
-        group.post("right", (req, s) -> response);
-
-        setRequest(POST, "right");
-        found();
-
-        setRequest(POST, "wrong");
-        notFound();
-
-        setRequest(PUT, "right");
-        notFound();
-    }
-
-    @Test
-    void testPostWithPathAndController() {
-        group.post("right", (req) -> response);
-
-        setRequest(POST, "right");
-        found();
-
-        setRequest(POST, "wrong");
-        notFound();
-
-        setRequest(PUT, "right");
-        notFound();
-    }
-
-    @Test
-    void testPostWithPathAndMiddlewareAndPrefix() {
-        group = new GroupMiddleware("prefix/");
-        group.post("right", (req, s) -> response);
-
-        setRequest(POST, "right");
-        notFound();
-
-        setRequest(POST, "prefix/right");
-        found();
-    }
-
-    @Test
-    void testPostWithPathAndControllerAndPrefix() {
-        group = new GroupMiddleware("prefix/");
-        group.post("right", (req) -> response);
-
-        setRequest(POST, "right");
-        notFound();
-
-        setRequest(POST, "prefix/right");
-        found();
-    }
-
-    @Test
-    void testPutWithPathAndController() {
-        group.put("right", (req) -> response);
-
-        setRequest(PUT, "right");
-        found();
-
-        setRequest(PUT, "wrong");
-        notFound();
-
-        setRequest(GET, "right");
-        notFound();
-    }
-
-    @Test
-    void testDeleteWithPathAndController() {
-        group.delete("right", (req) -> response);
-
-        setRequest(DELETE, "right");
-        found();
-
-        setRequest(DELETE, "wrong");
-        notFound();
-
-        setRequest(GET, "right");
-        notFound();
-    }
-
-    @Test
-    void testPatchWithPathAndController() {
-        group.patch("right", (req) -> response);
-
-        setRequest(PATCH, "right");
-        found();
-
-        setRequest(PATCH, "wrong");
-        notFound();
-
-        setRequest(GET, "right");
-        notFound();
+        withRequest(method, "right");
+        assertFailure();
     }
 
     @Test
@@ -425,8 +166,8 @@ public class GroupMiddlewareTest {
             r.get("right", (req) -> response);
         });
 
-        setRequest(GET, "right");
-        found();
+        withRequest(GET, "right");
+        assertSuccess();
     }
 
     @Test
@@ -435,23 +176,73 @@ public class GroupMiddlewareTest {
             r.get("right", (req) -> response);
         });
 
-        setRequest(GET, "right");
-        notFound();
+        withRequest(GET, "right");
+        assertFailure();
 
-        setRequest(GET, "prefix/right");
-        found();
+        withRequest(GET, "prefix/right");
+        assertSuccess();
     }
 
-    private void found() {
-        assertEquals(response, group.handleRequest(request, stack));
+    @Test
+    void testCallMethod() {
+        callMethod("all", false);
+        callMethod("all", true);
+        assertThrows(RuntimeException.class, () -> callMethod("madeup", true));
+        assertThrows(RuntimeException.class, () -> callMethod("madeup", false));
+
+        callMethod("all", "right", false);
+        callMethod("all", "right", true);
+        assertThrows(RuntimeException.class, () -> callMethod("madeup", "right", true));
+        assertThrows(RuntimeException.class, () -> callMethod("madeup", "right", false));
     }
 
+    private void callMethod(String name, boolean withController) {
+        try {
+            Method method = GroupMiddleware.class.getMethod(name, withController ? Controller.class : Middleware.class);
 
-    private void notFound() {
-        assertThrows(EmptyStackException.class, () -> group.handleRequest(request, stack));
+            if (withController) {
+                method.invoke(group, (Controller) (req) -> response);
+            } else {
+                method.invoke(group, (Middleware) (req, s) -> response);
+            }
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            String message = "Missing " + name + "(" + (withController ? "Controlller)" : "Middleware)");
+            throw new RuntimeException(message, e);
+        }
     }
 
-    private void setRequest(Request.Method get, String path) {
+    private void callMethod(String name, String path, boolean withController) {
+        try {
+            Method method = GroupMiddleware.class.getMethod(name, String.class, withController ? Controller.class : Middleware.class);
+
+            if (withController) {
+                method.invoke(group, path, (Controller) (req) -> response);
+            } else {
+                method.invoke(group, path, (Middleware) (req, s) -> response);
+            }
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            String message = "Missing " + name + "(String, " + (withController ? "Controlller)" : "Middleware)");
+            throw new RuntimeException(message, e);
+        }
+    }
+
+    private void assertSuccess() {
+        assertEquals(response, group.handleRequest(request, stack), getContext());
+    }
+
+    private void assertFailure() {
+
+        assertThrows(EmptyStackException.class, () -> group.handleRequest(request, stack), getContext());
+    }
+
+    private String getContext() {
+        return "On " + methodName + "(" +
+                (withPath ? "String," : "") +
+                (withController ? "Controller" : "Middleware") + ")" +
+                (withPrefix ? " with a prefix" : "");
+    }
+
+    private void withRequest(Request.Method get, String path) {
         when(request.getMethod()).thenReturn(get);
         when(request.getPath()).thenReturn(path);
     }
