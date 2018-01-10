@@ -1,6 +1,5 @@
 package rdthk.espresso;
 
-import net.bytebuddy.implementation.bytecode.Throw;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
