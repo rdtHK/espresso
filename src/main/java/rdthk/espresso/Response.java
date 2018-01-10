@@ -1,5 +1,4 @@
 package rdthk.espresso;
 
-public interface Response {
-    void write(String text);
+public class Response {
 }
