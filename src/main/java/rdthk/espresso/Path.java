@@ -42,7 +42,6 @@ public class Path {
 
     public static class MatchResult {
         public final boolean matches;
-        // TODO: Make parameters immutable?
         public final Map<String, String> parameters;
 
         private MatchResult(boolean matches, Map<String, String> parameters) {
