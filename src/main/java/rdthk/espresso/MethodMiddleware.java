@@ -1,19 +1,19 @@
 package rdthk.espresso;
 
-public class MethodMiddleware implements Middleware {
-    private final Middleware child;
-    private final Request.Method method;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
-    public MethodMiddleware(Request.Method method, Middleware child) {
+public class MethodMiddleware implements Middleware {
+    private final String method;
+
+    public MethodMiddleware(String method) {
         this.method = method;
-        this.child = child;
     }
 
     @Override
-    public Response handleRequest(Request request, Stack stack) {
-        if (method.equals(request.getMethod())) {
-            return child.handleRequest(request, stack);
+    public void handleRequest(HttpServletRequest request, HttpServletResponse response, Chain chain) {
+        if (request.getMethod().equals(method)) {
+            chain.next();
         }
-        return stack.pop();
     }
 }

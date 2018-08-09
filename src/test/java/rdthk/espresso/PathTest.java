@@ -69,4 +69,10 @@ public class PathTest {
         Path path = new Path("*");
         assertTrue(path.match("Hello").matches);
     }
+
+    @Test
+    void testReturnsMatchedString() {
+        Path path = new Path("*");
+        assertEquals("Hello", path.match("Hello").text);
+    }
 }

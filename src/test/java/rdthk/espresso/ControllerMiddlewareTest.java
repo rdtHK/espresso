@@ -3,26 +3,33 @@ package rdthk.espresso;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import java.util.ArrayList;
+
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 public class ControllerMiddlewareTest {
-    private Request request;
-    private Middleware.Stack stack;
+    private HttpServletRequest request;
+    private HttpServletResponse response;
     private Controller controller;
+    private Middleware.Chain chain;
 
     @BeforeEach
     void beforeEach() {
-        request = mock(Request.class);
-        stack = new Middleware.Stack(request);
         controller = mock(Controller.class);
+        request = mock(HttpServletRequest.class);
+        response = mock(HttpServletResponse.class);
+        chain = mock(Middleware.Chain.class);
     }
 
 
     @Test
     void testHandleRequest() {
         Middleware middleware = new ControllerMiddleware(controller);
-        middleware.handleRequest(request, stack);
-        verify(controller).handleRequest(request);
+        middleware.handleRequest(request, response, chain);
+        verify(controller).handleRequest(request, response);
     }
 }

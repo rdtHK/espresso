@@ -1,28 +1,39 @@
 package rdthk.espresso;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.util.Map;
 
 public class PathMiddleware implements Middleware {
     private final Path path;
-    private final Middleware child;
 
-    public PathMiddleware(String path, Middleware child) {
+    public PathMiddleware(String path) {
         this.path = new Path(path);
-        this.child = child;
     }
 
     @Override
-    public Response handleRequest(Request request, Stack stack) {
-        Path.MatchResult result = path.match(request.getPath());
+    public void handleRequest(HttpServletRequest request, HttpServletResponse response, Chain chain) {
+        String basePath = (String) request.getAttribute("base-path");
+
+        if (basePath == null) {
+            basePath = "";
+        }
+
+        Path.MatchResult result = path.match(request.getPathInfo().substring(basePath.length()));
 
         if (result.matches) {
-            for (Map.Entry<String, String> parameter: result.parameters.entrySet()) {
-                request.putParameter(parameter.getKey(), parameter.getValue());
+            Map<String, String> parameters = result.parameters;
+            Map<String, String> parentParameters = (Map<String, String>) request.getAttribute("path-parameters");
+
+            if (parentParameters != null) {
+                parameters.putAll(parentParameters);
             }
 
-            return child.handleRequest(request, stack);
-        } else {
-            return stack.pop();
+            request.setAttribute("base-path", basePath + result.text);
+            request.setAttribute("path-parameters", parameters);
+            chain.next();
+            request.setAttribute("base-path", basePath);
+            request.setAttribute("path-parameters", parentParameters);
         }
     }
 }

@@ -1,5 +1,8 @@
 package rdthk.espresso;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
 public interface Controller {
-    Response handleRequest(Request request);
+    void handleRequest(HttpServletRequest request, HttpServletResponse response);
 }

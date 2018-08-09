@@ -3,68 +3,111 @@ package rdthk.espresso;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.EmptyStackException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.mockito.Mockito.*;
 
 public class PathMiddlewareTest {
-
-
-    private Request request;
-    private Response response;
-    private Middleware.Stack stack;
+    private HttpServletRequest request;
+    private HttpServletResponse response;
+    private Middleware.Chain chain;
 
     @BeforeEach
     void beforeEach() {
-        request = mock(Request.class);
-        response = mock(Response.class);
-        stack = new Middleware.Stack(request);
+        request = mock(HttpServletRequest.class);
+        response = mock(HttpServletResponse.class);
+        chain = mock(Middleware.Chain.class);
     }
 
     @Test
-    void testEmptyPath() {
-        Middleware path = new PathMiddleware("", (req, s) -> response);
+    void testUsesBasePath() {
+        when(request.getPathInfo()).thenReturn("/foo/bar");
+        when(request.getAttribute("base-path")).thenReturn("/foo");
 
-        when(request.getPath()).thenReturn("");
-        assertEquals(response, path.handleRequest(request, stack));
+        Middleware middleware = new PathMiddleware("/bar");
+        middleware.handleRequest(request, response, chain);
 
-        when(request.getPath()).thenReturn("other");
-        assertThrows(EmptyStackException.class, () -> path.handleRequest(request, stack));
+        verify(chain).next();
+    }
+
+    @Test
+    void testMergesParentParams() {
+        Map<String, String> parentParams = new HashMap<>();
+        parentParams.put("a", "b");
+
+        Map<String, String> resultParams = new HashMap<>();
+        resultParams.put("a", "b");
+        resultParams.put("foo", "bar");
+
+        when(request.getPathInfo()).thenReturn("/bar");
+        when(request.getAttribute("path-parameters")).thenReturn(parentParams);
+
+        Middleware middleware = new PathMiddleware("/:foo");
+        middleware.handleRequest(request, response, chain);
+
+        verify(request).setAttribute("path-parameters", parentParams);
+        verify(request).setAttribute("path-parameters", resultParams);
+    }
+
+    @Test
+    void testUpdatesBasePath() {
+        when(request.getPathInfo()).thenReturn("/foo/bar");
+        when(request.getAttribute("base-path")).thenReturn("/foo");
+
+        Middleware middleware = new PathMiddleware("/bar");
+        middleware.handleRequest(request, response, chain);
+
+        verify(request).setAttribute("base-path", "/foo/bar");
+        verify(request).setAttribute("base-path", "/foo");
     }
 
     @Test
     void testStaticPath() {
-        Middleware path = new PathMiddleware("path", (req, s) -> response);
+        when(request.getPathInfo()).thenReturn("/foo");
 
-        when(request.getPath()).thenReturn("path");
-        assertEquals(response, path.handleRequest(request, stack));
+        Middleware middleware = new PathMiddleware("/foo");
+        middleware.handleRequest(request, response, chain);
 
-        when(request.getPath()).thenReturn("other");
-        assertThrows(EmptyStackException.class, () -> path.handleRequest(request, stack));
+        verify(chain).next();
+    }
+
+    @Test
+    void testWrongPath() {
+        when(request.getPathInfo()).thenReturn("/foo");
+
+        Middleware middleware = new PathMiddleware("/bar");
+        middleware.handleRequest(request, response, chain);
+
+        verify(chain, never()).next();
     }
 
     @Test
     void testPathWildcard() {
-        Middleware path = new PathMiddleware("*", (req, s) -> response);
+        Middleware middleware = new PathMiddleware("*");
 
-        when(request.getPath()).thenReturn("");
-        assertEquals(response, path.handleRequest(request, stack));
+        when(request.getPathInfo()).thenReturn("/foo");
+        middleware.handleRequest(request, response, chain);
 
-        when(request.getPath()).thenReturn("other");
-        assertEquals(response, path.handleRequest(request, stack));
+        when(request.getPathInfo()).thenReturn("/bar");
+        middleware.handleRequest(request, response, chain);
+
+        verify(chain, times(2)).next();
     }
 
     @Test
     void testPathWithParameter() {
-        Middleware path = new PathMiddleware(":name", (req, s) -> response);
+        Middleware middleware = new PathMiddleware("/:foo");
 
-        when(request.getPath()).thenReturn("value");
-        assertEquals(response, path.handleRequest(request, stack));
-        verify(request).putParameter("name", "value");
+        when(request.getPathInfo()).thenReturn("/bar");
+        middleware.handleRequest(request, response, chain);
+
+        Map<String, String> parameters = new HashMap<String, String>();
+        parameters.put("foo", "bar");
+        verify(request).setAttribute("path-parameters", parameters);
     }
 }
 

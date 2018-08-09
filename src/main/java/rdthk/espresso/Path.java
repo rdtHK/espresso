@@ -19,13 +19,19 @@ public class Path {
     public MatchResult match(String path) {
         Matcher matcher = pattern.matcher(path);
         boolean matches = matcher.matches();
+        String text = "";
+
+        if (matches) {
+            text = matcher.group();
+        }
+
         Map<String, String> parameterValues = new HashMap<>();
 
         for (String name : parameterNames) {
             parameterValues.put(name, matcher.group(name));
         }
 
-        return new MatchResult(matches, parameterValues);
+        return new MatchResult(matches, text, parameterValues);
     }
 
     private Pattern compile(String pattern) {
@@ -42,10 +48,12 @@ public class Path {
 
     public static class MatchResult {
         public final boolean matches;
+        public final String text;
         public final Map<String, String> parameters;
 
-        private MatchResult(boolean matches, Map<String, String> parameters) {
+        private MatchResult(boolean matches, String text, Map<String, String> parameters) {
             this.matches = matches;
+            this.text = text;
             this.parameters = parameters;
         }
     }
