@@ -3,7 +3,6 @@ package rdthk.espresso;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.io.Writer;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
@@ -35,8 +34,8 @@ class EspressoTest {
         URL urlObj = new URL(url);
         HttpURLConnection con = (HttpURLConnection) urlObj.openConnection();
         con.setRequestMethod("GET");
-        con.setReadTimeout(1000);
-        con.setConnectTimeout(1000);
+        con.setReadTimeout(5000);
+        con.setConnectTimeout(5000);
         return new String(con.getInputStream().readAllBytes());
     }
 
