@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import java.io.IOException;
 import java.util.ArrayList;
 
 import static org.mockito.Mockito.mock;
@@ -27,7 +28,7 @@ public class ControllerMiddlewareTest {
 
 
     @Test
-    void testHandleRequest() {
+    void testHandleRequest() throws IOException {
         Middleware middleware = new ControllerMiddleware(controller);
         middleware.handleRequest(request, response, chain);
         verify(controller).handleRequest(request, response);
